@@ -33,13 +33,21 @@ Nous avons appliqué trois méthodes :
 ### Résultats
 
 Les résultats obtenus sont présentés dans les captures d'écran suivantes.
+
 **Recherche taboue**
+
 ![Résultats de l'exercice 3](captures/c-ex3,1.jpg)
+
 **Recuit simulé**
+
 ![Résultats de l'exercice 3](captures/c-ex3,2.jpg)
+
 **Algorithme génétique**
+
 ![Résultats de l'exercice 3](captures/c-ex3,3.jpg)
+
 **Solution exacte**
+
 ![Résultats de l'exercice 3](captures/c-ex3,4.jpg)
 
 ## Conclusion
