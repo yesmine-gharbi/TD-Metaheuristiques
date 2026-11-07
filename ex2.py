@@ -1,266 +1,90 @@
 
-from collections import deque
-from itertools import product
-
-# ==========================================
-# 1. DONNEES DU PROBLEME
-# ==========================================
-
-cout = [
+# Matrice des couts
+couts = [
     [5, 3, 4],
     [6, 7, 2]
 ]
 
-stock = [8, 9]
-demande = [4, 5, 8]
+# Solution initiale
+solution = [
+    [0, 0, 8],
+    [4, 5, 0]
+]
 
-m = len(stock)
-n = len(demande)
-
-assert sum(stock) == sum(demande), \
-    "Le probleme n'est pas equilibre."
-
-
-# ==========================================
-# 2. CALCUL DU COUT TOTAL
-# ==========================================
-
-def f(x):
+# Calcul du cout total
+def calculer_cout(s):
     total = 0
 
-    for i in range(m):
-        for j in range(n):
-            total += cout[i][j] * x[i][j]
+    for i in range(2):
+        for j in range(3):
+            total += s[i][j] * couts[i][j]
 
     return total
 
 
-# ==========================================
-# 3. SOLUTION INITIALE
-# ==========================================
+# Generer les voisins
+def voisins(s):
+    liste = []
 
-def solution_initiale():
-    s = stock[:]
-    d = demande[:]
+    for i in range(3):
+        for j in range(3):
 
-    x = [[0] * n for _ in range(m)]
+            if i != j and s[0][i] > 0 and s[1][j] > 0:
 
-    i = 0
-    j = 0
+                nouveau = [s[0].copy(), s[1].copy()]
 
-    while i < m and j < n:
-        q = min(s[i], d[j])
+                nouveau[0][i] -= 1
+                nouveau[0][j] += 1
 
-        x[i][j] = q
-        s[i] -= q
-        d[j] -= q
+                nouveau[1][i] += 1
+                nouveau[1][j] -= 1
 
-        if s[i] == 0:
-            i += 1
+                liste.append(nouveau)
 
-        if d[j] == 0:
-            j += 1
+    return liste
 
-    return x
 
+# Recherche taboue
+meilleure = [solution[0].copy(), solution[1].copy()]
 
-# ==========================================
-# 4. GENERATION DES VOISINS
-# ==========================================
+taboue = []
 
-def voisins(x):
-    resultat = []
+for iteration in range(20):
 
-    for a in range(n):
-        for b in range(n):
+    liste = voisins(solution)
 
-            if a == b:
-                continue
+    meilleur_voisin = None
+    meilleur_cout = float('inf')
 
-            # Verifier que le mouvement est possible
-            if x[0][a] >= 1 and x[1][b] >= 1:
+    for v in liste:
 
-                y = [ligne[:] for ligne in x]
+        if v not in taboue:
 
-                # Modification des livraisons de D1
-                y[0][a] -= 1
-                y[0][b] += 1
+            cout = calculer_cout(v)
 
-                # Compensation par D2
-                y[1][a] += 1
-                y[1][b] -= 1
+            if cout < meilleur_cout:
+                meilleur_cout = cout
+                meilleur_voisin = v
 
-                resultat.append(y)
+    if meilleur_voisin is None:
+        break
 
-    return resultat
+    solution = meilleur_voisin
 
+    taboue.append(solution)
 
-# ==========================================
-# 5. CLE D'UNE SOLUTION
-# ==========================================
+    if len(taboue) > 3:
+        taboue.pop(0)
 
-def cle(x):
-    return tuple(tuple(ligne) for ligne in x)
+    if calculer_cout(solution) < calculer_cout(meilleure):
+        meilleure = [solution[0].copy(), solution[1].copy()]
 
+    print("Iteration :", iteration + 1)
+    print("Solution :", solution)
+    print("Cout :", calculer_cout(solution))
 
-# ==========================================
-# 6. RECHERCHE TABOUE
-# ==========================================
 
-def recherche_tabou(
-    nb_iter=100,
-    taille_tabou=7,
-    stagnation_max=15
-):
-    s = solution_initiale()
+print("\nMeilleure solution :")
+print(meilleure)
 
-    meilleur = [ligne[:] for ligne in s]
-    meilleur_cout = f(s)
-
-    liste_taboue = deque(maxlen=taille_tabou)
-    liste_taboue.append(cle(s))
-
-    stagnation = 0
-
-    print("Solution initiale :", s)
-    print("Cout initial :", f(s))
-
-    for iteration in range(1, nb_iter + 1):
-
-        candidats = [
-            v for v in voisins(s)
-            if cle(v) not in liste_taboue
-            or f(v) < meilleur_cout
-        ]
-
-        if not candidats:
-            print("Aucun voisin autorise. Arret.")
-            break
-
-        # Choisir le voisin ayant le cout minimal
-        s = min(candidats, key=f)
-        liste_taboue.append(cle(s))
-
-        cout_courant = f(s)
-
-        # Mise a jour de la meilleure solution
-        if cout_courant < meilleur_cout:
-            meilleur = [ligne[:] for ligne in s]
-            meilleur_cout = cout_courant
-            stagnation = 0
-        else:
-            stagnation += 1
-
-        print(
-            f"Iteration {iteration:3d} : "
-            f"cout courant = {cout_courant:3d} | "
-            f"meilleur cout = {meilleur_cout}"
-        )
-
-        if stagnation >= stagnation_max:
-            print("Stagnation : arret.")
-            break
-
-    return meilleur, meilleur_cout
-
-
-# ==========================================
-# 7. VERIFICATION EXACTE
-# ==========================================
-
-def verification_exacte():
-    meilleur = None
-    meilleur_cout = float("inf")
-
-    # Enumerer les quantites envoyees par D1
-    for x11, x12, x13 in product(
-        range(demande[0] + 1),
-        range(demande[1] + 1),
-        range(demande[2] + 1)
-    ):
-
-        # D1 doit utiliser exactement ses 8 containers
-        if x11 + x12 + x13 != stock[0]:
-            continue
-
-        # D2 satisfait les demandes restantes
-        x21 = demande[0] - x11
-        x22 = demande[1] - x12
-        x23 = demande[2] - x13
-
-        x = [
-            [x11, x12, x13],
-            [x21, x22, x23]
-        ]
-
-        cout_actuel = f(x)
-
-        if cout_actuel < meilleur_cout:
-            meilleur = [ligne[:] for ligne in x]
-            meilleur_cout = cout_actuel
-
-    return meilleur, meilleur_cout
-
-
-# ==========================================
-# 8. AFFICHAGE DES RESULTATS
-# ==========================================
-
-def afficher_solution(titre, x, cout_total):
-    print("\n" + titre)
-
-    print("        M1  M2  M3")
-
-    for i in range(m):
-        print(
-            f"D{i + 1} :   "
-            + "   ".join(str(q) for q in x[i])
-        )
-
-    print("\nDetails des livraisons :")
-
-    for i in range(m):
-        for j in range(n):
-            print(
-                f"D{i + 1} -> M{j + 1} : "
-                f"{x[i][j]} containers"
-            )
-
-    print("Cout total :", cout_total)
-
-
-# ==========================================
-# 9. PROGRAMME PRINCIPAL
-# ==========================================
-
-if __name__ == "__main__":
-
-    print("=" * 45)
-    print("EXERCICE 2 - PROBLEME DE TRANSPORT")
-    print("=" * 45)
-
-    best, cout_tabou = recherche_tabou()
-
-    afficher_solution(
-        "RESULTAT DE LA RECHERCHE TABOUE",
-        best,
-        cout_tabou
-    )
-
-    optimum, cout_optimum = verification_exacte()
-
-    afficher_solution(
-        "VERIFICATION EXACTE",
-        optimum,
-        cout_optimum
-    )
-
-    print("\nComparaison finale :")
-
-    print("Cout obtenu par recherche taboue :", cout_tabou)
-    print("Cout optimal exact :", cout_optimum)
-
-    if cout_tabou == cout_optimum:
-        print("La recherche taboue a trouve l'optimum.")
-    else:
-        print("La recherche taboue n'a pas trouve l'optimum.")
+print("Cout minimal :", calculer_cout(meilleure))

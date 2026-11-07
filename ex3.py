@@ -1,443 +1,254 @@
-
 import random
 import math
-from itertools import permutations
-from collections import deque
-
-# ==================================================
-# 1. DONNEES DU PROBLEME
-# ==================================================
-
-random.seed(1)
-
-INF = float("inf")
-
-# Couts des liaisons indiquees dans le sujet
-aretes = {
-    (1, 2): 14, (1, 3): 15, (1, 8): 17,
-    (2, 3): 13, (2, 4): 14, (2, 5): 20, (2, 8): 21,
-    (3, 4): 11, (3, 5): 21, (3, 6): 17,
-    (3, 7): 9, (3, 8): 9,
-    (4, 5): 11, (4, 6): 10, (4, 7): 8, (4, 8): 20,
-    (5, 6): 15, (5, 7): 18,
-    (6, 7): 9,
-    (7, 8): 13
-}
-
-VILLES = list(range(1, 9))
-SOLUTION_INITIALE = [1, 2, 3, 4, 5, 6, 7, 8]
+import itertools
 
 
-# ==================================================
-# 2. FONCTIONS DE BASE
-# ==================================================
 
-def distance(a, b):
-    """Retourne le cout d'une liaison, ou INF si elle est absente."""
-    return aretes.get(
-        (a, b),
-        aretes.get((b, a), INF)
-    )
+D = [
+    [0, 14, 15, math.inf, math.inf, math.inf, math.inf, 17],
+    [14, 0, 13, 14, 20, math.inf, math.inf, 21],
+    [15, 13, 0, 11, 21, 17, 9, 9],
+    [math.inf, 14, 11, 0, 11, 10, 8, 20],
+    [math.inf, 20, 21, 11, 0, 15, 18, math.inf],
+    [math.inf, math.inf, 17, 10, 15, 0, 9, math.inf],
+    [math.inf, math.inf, 9, 8, 18, 9, 0, 13],
+    [17, 21, 9, 20, math.inf, math.inf, 13, 0]
+]
 
 
-def cout_tour(tour):
-    """Calcule le cout du circuit, retour a la ville de depart inclus."""
+def calculer_cout(solution):
+
     total = 0
 
-    for i in range(len(tour)):
-        a = tour[i]
-        b = tour[(i + 1) % len(tour)]
+    for i in range(len(solution) - 1):
 
-        c = distance(a, b)
+        distance = D[solution[i] - 1][solution[i + 1] - 1]
 
-        if c == INF:
-            return INF
+        if distance == math.inf:
+            return math.inf
 
-        total += c
+        total += distance
+
+    # Retour a la premiere ville
+    distance = D[solution[-1] - 1][solution[0] - 1]
+
+    if distance == math.inf:
+        return math.inf
+
+    total += distance
 
     return total
 
 
-def tour_valide(tour):
-    """Verifie que toutes les liaisons du circuit existent."""
-    return cout_tour(tour) != INF
+def generer_voisins(solution):
 
+    liste = []
 
-def afficher_tour(tour):
-    """Affiche le circuit en ajoutant le retour a la ville 1."""
-    return " -> ".join(map(str, tour + [tour[0]]))
+    for i in range(1, 8):
+        for j in range(i + 1, 8):
 
+            voisin = solution.copy()
 
-def echanger(tour, i, j):
-    """Construit un voisin en echangeant deux villes."""
-    resultat = tour[:]
-    resultat[i], resultat[j] = resultat[j], resultat[i]
-    return resultat
+            voisin[i], voisin[j] = voisin[j], voisin[i]
 
+            if calculer_cout(voisin) != math.inf:
+                liste.append(voisin)
 
-# ==================================================
-# 3. RECHERCHE TABOUE
-# ==================================================
+    return liste
 
-def recherche_taboue(nb_iter=100, taille_tabou=7):
-    courant = SOLUTION_INITIALE[:]
-    meilleur = courant[:]
-    meilleur_cout = cout_tour(meilleur)
+def recherche_taboue():
 
-    liste_taboue = deque(maxlen=taille_tabou)
+    print("\n===== RECHERCHE TABOUE =====")
 
-    print("\n" + "=" * 55)
-    print("RECHERCHE TABOUE")
-    print("=" * 55)
+    solution = [1, 2, 3, 4, 5, 6, 7, 8]
 
-    print("Circuit initial :", afficher_tour(courant))
-    print("Cout initial :", cout_tour(courant))
+    meilleure = solution.copy()
 
-    for iteration in range(1, nb_iter + 1):
+    taboue = []
+
+    for iteration in range(30):
+
+        liste = generer_voisins(solution)
+
         meilleur_voisin = None
-        cout_voisin = INF
-        mouvement_choisi = None
+        meilleur_cout = math.inf
 
-        # La ville 1 reste fixe en premiere position
-        for i in range(1, len(courant) - 1):
-            for j in range(i + 1, len(courant)):
-                voisin = echanger(courant, i, j)
+        for voisin in liste:
 
-                # Ignorer les circuits utilisant une liaison absente
-                if not tour_valide(voisin):
-                    continue
+            cout = calculer_cout(voisin)
 
-                mouvement = tuple(sorted((courant[i], courant[j])))
-                est_tabou = mouvement in liste_taboue
-                cout = cout_tour(voisin)
+            if voisin not in taboue or cout < calculer_cout(meilleure):
 
-                # Critere d'aspiration :
-                # autoriser un mouvement tabou s'il ameliore le meilleur
-                if est_tabou and cout >= meilleur_cout:
-                    continue
-
-                if cout < cout_voisin:
+                if cout < meilleur_cout:
+                    meilleur_cout = cout
                     meilleur_voisin = voisin
-                    cout_voisin = cout
-                    mouvement_choisi = mouvement
 
         if meilleur_voisin is None:
-            print("Aucun voisin admissible. Fin de la recherche.")
             break
 
-        courant = meilleur_voisin
-        liste_taboue.append(mouvement_choisi)
+        solution = meilleur_voisin.copy()
 
-        if cout_voisin < meilleur_cout:
-            meilleur = courant[:]
-            meilleur_cout = cout_voisin
+        taboue.append(solution.copy())
 
-        print(
-            f"Iteration {iteration:3d} | "
-            f"Cout courant = {cout_voisin:3.0f} | "
-            f"Meilleur cout = {meilleur_cout:3.0f}"
-        )
+        if len(taboue) > 5:
+            taboue.pop(0)
 
-    print("\nMeilleur circuit tabou :", afficher_tour(meilleur))
-    print("Meilleur cout tabou :", meilleur_cout)
+        if calculer_cout(solution) < calculer_cout(meilleure):
+            meilleure = solution.copy()
 
-    return meilleur, meilleur_cout
+        print("Iteration :", iteration + 1)
+        print("Circuit :", solution)
+        print("Cout :", calculer_cout(solution))
 
+    print("\nMeilleur circuit :", meilleure)
+    print("Cout final :", calculer_cout(meilleure))
 
-# ==================================================
-# 4. RECUIT SIMULE
-# ==================================================
+def recuit_simule():
 
-def recuit_simule(
-    nb_iter=5,
-    temperature_initiale=20.0,
-    alpha=0.8
-):
-    courant = SOLUTION_INITIALE[:]
-    meilleur = courant[:]
+    print("\n===== RECUIT SIMULE =====")
 
-    cout_courant = cout_tour(courant)
-    meilleur_cout = cout_courant
-    temperature = temperature_initiale
+    solution = [1, 2, 3, 4, 5, 6, 7, 8]
 
-    print("\n" + "=" * 55)
-    print("RECUIT SIMULE")
-    print("=" * 55)
+    meilleure = solution.copy()
 
-    print("Circuit initial :", afficher_tour(courant))
-    print("Cout initial :", cout_courant)
-    print("Temperature initiale :", temperature_initiale)
-    print("Coefficient de refroidissement :", alpha)
+    T = 10
+    alpha = 0.8
 
-    for iteration in range(1, nb_iter + 1):
+    for iteration in range(5):
 
-        # Choisir deux positions differentes, sans deplacer la ville 1
-        i, j = random.sample(range(1, len(courant)), 2)
+        liste = generer_voisins(solution)
 
-        candidat = echanger(courant, i, j)
-        cout_candidat = cout_tour(candidat)
+        if len(liste) == 0:
+            break
 
-        # Une liaison absente rend le candidat inadmissible
-        if cout_candidat == INF:
-            print(
-                f"Iteration {iteration} : "
-                "candidat invalide, mouvement refuse."
-            )
-            temperature *= alpha
-            continue
+        voisin = random.choice(liste)
 
-        delta = cout_candidat - cout_courant
+        delta = calculer_cout(voisin) - calculer_cout(solution)
 
         if delta <= 0:
-            probabilite = 1.0
+            solution = voisin.copy()
+
         else:
-            probabilite = math.exp(-delta / temperature)
+            P = math.exp(-delta / T)
 
-        tirage = random.random()
-        accepte = tirage < probabilite
+            nombre = random.random()
 
-        if accepte:
-            courant = candidat
-            cout_courant = cout_candidat
+            if nombre < P:
+                solution = voisin.copy()
 
-        if cout_courant < meilleur_cout:
-            meilleur = courant[:]
-            meilleur_cout = cout_courant
+        if calculer_cout(solution) < calculer_cout(meilleure):
+            meilleure = solution.copy()
 
-        print(
-            f"Iteration {iteration:2d} | "
-            f"T = {temperature:7.3f} | "
-            f"delta = {delta:4.0f} | "
-            f"P = {probabilite:.3f} | "
-            f"tirage = {tirage:.3f} | "
-            f"{'accepte' if accepte else 'refuse'} | "
-            f"cout courant = {cout_courant:.0f} | "
-            f"meilleur = {meilleur_cout:.0f}"
-        )
+        print("Iteration :", iteration + 1)
+        print("Temperature :", round(T, 3))
+        print("Circuit :", solution)
+        print("Cout :", calculer_cout(solution))
 
-        # Refroidissement
-        temperature *= alpha
+        T = T * alpha
 
-    print("\nMeilleur circuit recuit :", afficher_tour(meilleur))
-    print("Meilleur cout recuit :", meilleur_cout)
-
-    return meilleur, meilleur_cout
-
-
-# ==================================================
-# 5. ALGORITHME GENETIQUE
-# ==================================================
-
-def generer_tour_valide():
-    """Genere un circuit valide en gardant la ville 1 au debut."""
-    autres_villes = VILLES[1:]
-
-    for _ in range(10000):
-        random.shuffle(autres_villes)
-        candidat = [1] + autres_villes[:]
-
-        if tour_valide(candidat):
-            return candidat
-
-    raise RuntimeError("Impossible de generer un circuit valide.")
+    print("\nMeilleur circuit :", meilleure)
+    print("Cout final :", calculer_cout(meilleure))
 
 
 def croisement(parent1, parent2):
-    """Croisement d'ordre (Order Crossover, OX)."""
-    taille = len(parent1)
 
-    i, j = sorted(random.sample(range(1, taille), 2))
+    debut = random.randint(1, 6)
+    fin = random.randint(debut + 1, 7)
 
-    enfant = [None] * taille
+    enfant = [None] * 8
+
     enfant[0] = 1
 
-    # Copier un segment du premier parent
-    enfant[i:j + 1] = parent1[i:j + 1]
+    enfant[debut:fin + 1] = parent1[debut:fin + 1]
 
-    villes_restantes = [
-        ville for ville in parent2[1:]
-        if ville not in enfant
-    ]
+    reste = []
 
-    positions = [
-        k for k in range(1, taille)
-        if enfant[k] is None
-    ]
+    for ville in parent2:
+        if ville not in enfant:
+            reste.append(ville)
 
-    for position, ville in zip(positions, villes_restantes):
-        enfant[position] = ville
+    positions = []
+
+    for i in range(1, 8):
+        if enfant[i] is None:
+            positions.append(i)
+
+    for i in range(len(positions)):
+        enfant[positions[i]] = reste[i]
 
     return enfant
 
 
-def mutation(tour, probabilite=0.2):
-    """Echange deux villes avec une certaine probabilite."""
-    resultat = tour[:]
+def algorithme_genetique():
 
-    if random.random() < probabilite:
-        i, j = random.sample(range(1, len(resultat)), 2)
-        resultat[i], resultat[j] = resultat[j], resultat[i]
+    print("\n===== ALGORITHME GENETIQUE =====")
 
-    return resultat
+    # Generer les circuits valides
+    circuits = []
 
+    for p in itertools.permutations(range(2, 9)):
 
-def algorithme_genetique(
-    taille_population=40,
-    nb_generations=200,
-    taux_mutation=0.2
-):
-    print("\n" + "=" * 55)
-    print("ALGORITHME GENETIQUE")
-    print("=" * 55)
+        solution = [1] + list(p)
 
-    # Initialisation de la population
-    population = [SOLUTION_INITIALE[:]]
+        if calculer_cout(solution) != math.inf:
+            circuits.append(solution)
 
-    while len(population) < taille_population:
-        candidat = generer_tour_valide()
+    # Population initiale
+    population = random.sample(circuits, 10)
 
-        if candidat not in population:
-            population.append(candidat)
+    generations = 20
 
-    meilleur = None
-    meilleur_cout = INF
+    for generation in range(generations):
 
-    for generation in range(1, nb_generations + 1):
+        population.sort(key=calculer_cout)
 
-        population.sort(key=cout_tour)
+        # Garder les deux meilleurs
+        nouvelle_population = population[:2]
 
-        if cout_tour(population[0]) < meilleur_cout:
-            meilleur = population[0][:]
-            meilleur_cout = cout_tour(meilleur)
+        while len(nouvelle_population) < 10:
 
-        # Conserver les deux meilleurs individus
-        nouvelle_population = [
-            population[0][:],
-            population[1][:]
-        ]
+            # Selection
+            parent1 = random.choice(population[:5])
+            parent2 = random.choice(population[:5])
 
-        # Selection par tournoi, entre trois individus
-        while len(nouvelle_population) < taille_population:
-
-            candidats1 = random.sample(
-                population,
-                min(3, len(population))
-            )
-            parent1 = min(candidats1, key=cout_tour)
-
-            candidats2 = random.sample(
-                population,
-                min(3, len(population))
-            )
-            parent2 = min(candidats2, key=cout_tour)
-
+            # Croisement
             enfant = croisement(parent1, parent2)
-            enfant = mutation(enfant, taux_mutation)
 
-            # Ne conserver que les circuits valides
-            if tour_valide(enfant):
+            # Mutation
+            if random.random() < 0.2:
+
+                i, j = random.sample(range(1, 8), 2)
+
+                enfant[i], enfant[j] = enfant[j], enfant[i]
+
+            # Verifier la validite
+            if calculer_cout(enfant) != math.inf:
                 nouvelle_population.append(enfant)
             else:
-                # Si le descendant est invalide, utiliser
-                # un circuit valide aleatoire
-                nouvelle_population.append(generer_tour_valide())
+                nouvelle_population.append(parent1.copy())
 
         population = nouvelle_population
 
-        if generation % 20 == 0 or generation == 1:
-            print(
-                f"Generation {generation:3d} | "
-                f"Meilleur cout = {meilleur_cout:.0f}"
-            )
+        population.sort(key=calculer_cout)
 
-    # Derniere verification de la population
-    population.sort(key=cout_tour)
+        print("Generation :", generation + 1)
+        print("Meilleur circuit :", population[0])
+        print("Cout :", calculer_cout(population[0]))
 
-    if cout_tour(population[0]) < meilleur_cout:
-        meilleur = population[0][:]
-        meilleur_cout = cout_tour(meilleur)
-
-    print("\nMeilleur circuit genetique :", afficher_tour(meilleur))
-    print("Meilleur cout genetique :", meilleur_cout)
-
-    return meilleur, meilleur_cout
+    print("\nMeilleur circuit :", population[0])
+    print("Cout final :", calculer_cout(population[0]))
 
 
-# ==================================================
-# 6. VERIFICATION EXACTE
-# ==================================================
 
-def optimum_exact():
-    """Teste tous les circuits possibles commencant par la ville 1."""
-    meilleur = None
-    meilleur_cout = INF
+print("COUT DE LA SOLUTION INITIALE :")
 
-    for permutation in permutations(range(2, 9)):
-        tour = [1] + list(permutation)
-        cout = cout_tour(tour)
+initiale = [1, 2, 3, 4, 5, 6, 7, 8]
 
-        if cout < meilleur_cout:
-            meilleur = tour[:]
-            meilleur_cout = cout
+print("Circuit :", initiale)
+print("Cout :", calculer_cout(initiale))
 
-    return meilleur, meilleur_cout
+recherche_taboue()
 
+recuit_simule()
 
-# ==================================================
-# 7. PROGRAMME PRINCIPAL
-# ==================================================
-
-if __name__ == "__main__":
-
-    print("PROBLEME DU VOYAGEUR DE COMMERCE")
-    print("Nombre de villes :", len(VILLES))
-    print("Circuit initial :", afficher_tour(SOLUTION_INITIALE))
-    print("Cout initial :", cout_tour(SOLUTION_INITIALE))
-
-    # Question 1 : recherche taboue
-    meilleur_tabou, cout_tabou = recherche_taboue(
-        nb_iter=100,
-        taille_tabou=7
-    )
-
-    # Question 2 : recuit simule, 5 iterations
-    meilleur_recuit, cout_recuit = recuit_simule(
-        nb_iter=5,
-        temperature_initiale=20.0,
-        alpha=0.8
-    )
-
-    # Question 3 : algorithme genetique
-    meilleur_genetique, cout_genetique = algorithme_genetique(
-        taille_population=40,
-        nb_generations=200,
-        taux_mutation=0.2
-    )
-
-    # Verification exacte supplementaire
-    meilleur_exact, cout_exact = optimum_exact()
-
-    print("\n" + "=" * 55)
-    print("COMPARAISON FINALE")
-    print("=" * 55)
-
-    print(
-        f"Recherche taboue : {afficher_tour(meilleur_tabou)} "
-        f"| cout = {cout_tabou}"
-    )
-
-    print(
-        f"Recuit simule    : {afficher_tour(meilleur_recuit)} "
-        f"| cout = {cout_recuit}"
-    )
-
-    print(
-        f"Algorithme genetique : "
-        f"{afficher_tour(meilleur_genetique)} "
-        f"| cout = {cout_genetique}"
-    )
-
-    print(
-        f"Optimum exact    : {afficher_tour(meilleur_exact)} "
-        f"| cout = {cout_exact}"
-    )
+algorithme_genetique()
